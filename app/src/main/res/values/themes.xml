@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Patephone" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="background">@color/material_dynamic_neutral80</item>
+        <item name="colorPrimary">@color/primary60</item>
+        <item name="colorOnPrimary">@color/secondary80</item>
+    </style>
+
+    <style name="Theme.Patephone" parent="Base.Theme.Patephone" />
+</resources>

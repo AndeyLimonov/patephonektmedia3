@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="frame">@color/material_dynamic_neutral70</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="primary80">@color/material_dynamic_primary80</color>
+    <color name="primary60">@color/material_dynamic_primary60</color>
+    <color name="primary40">@color/material_dynamic_primary40</color>
+    <color name="secondary80">@color/material_dynamic_secondary80</color>
+    <color name="secondary60">@color/material_dynamic_secondary60</color>
+    <color name="secondary40">@color/material_dynamic_secondary40</color>
+    <color name="secondary20">@color/material_dynamic_secondary20</color>
+    <color name="mainframe">@color/primary60</color>
+    <color name="importButtonText">@color/material_dynamic_neutral60</color>
+</resources>
