@@ -1,28 +1,47 @@
 package com.example.patephonektmedia3
 
+import android.annotation.SuppressLint
+import android.content.ComponentName
 import android.content.Intent
+import android.content.ServiceConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
+import android.view.View
 import android.widget.Button
-import android.widget.TextView
+import android.widget.ImageView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
 
 const val REQUEST_CODE_OPEN_DIRECTORY: Int = 1
 val supportedFiles: Array<String> = arrayOf("mp3")
 
 class MainActivity : AppCompatActivity() {
-    lateinit var exoPlayer: ExoPlayer
+    var mediaList: ArrayList<Uri> = ArrayList()
 
-    var playedYet = false
-    var isPlaying = false
-    var wasImported = false
+    var service: PlayerService? = null
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as PlayerService.LocalBinder
+            this@MainActivity.service = binder.getService()
+            for (mediaUri in mediaList){
+                val mediaItem = MediaItem.fromUri(mediaUri)
+                this@MainActivity.service?.addMedia(mediaItem)
+                this@MainActivity.service?.addSongLabel(findViewById(R.id.songLabel))
+            }
+        }
 
+        //хуй
 
-        override fun onCreate(savedInstanceState: Bundle?) {
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            service = null
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
@@ -30,20 +49,27 @@ class MainActivity : AppCompatActivity() {
         val importButton: Button = findViewById(R.id.importButton)
         importButton.setOnClickListener { v -> onImport() }
 
-        val startButton: Button = findViewById(R.id.playButton)
-        startButton.setOnClickListener { v -> onPlayButton() }
+        val playButton: Button = findViewById(R.id.playButton)
+        playButton.setOnClickListener { v -> service?.onPlay(v) }
+
+        val nextButton: Button = findViewById(R.id.nextButton)
+        nextButton.setOnClickListener { v -> service?.onNextButton() }
+
+        val prevButton: Button = findViewById(R.id.prevButton)
+        prevButton.setOnClickListener { v -> service?.onPrevButton() }
 
         val stopButton: Button = findViewById(R.id.stopButton)
-        stopButton.setOnClickListener { v -> onStopButton() }
-
+        stopButton.setOnClickListener { v -> service?.onStopButton(playButton) }
     }
 
+    @Suppress("DEPRECATION")
     private fun  onImport() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
 
         startActivityForResult(intent, REQUEST_CODE_OPEN_DIRECTORY)
     }
 
+    @SuppressLint("UnsafeIntentLaunch")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?){
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -55,9 +81,14 @@ class MainActivity : AppCompatActivity() {
                             uri,
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
+                        val intent = Intent(this, PlayerService::class.java)
+                        val context = applicationContext
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startForegroundService(intent)
+                        }
+                        bindService(intent, connection, BIND_AUTO_CREATE)
+
                         listFiles(uri)
-                        playedYet = false
-                        wasImported = true
                     }
 
                 }
@@ -68,13 +99,25 @@ class MainActivity : AppCompatActivity() {
         if (file.isDirectory) {
             return false
         }
-        val fileName: String = file.name
-        try {
-            val fileType: String = fileName.split(".")[1]
-            for (type in supportedFiles){
-                return (fileType == type)
+        val fileName: String? = file.name
+        if (fileName != null) {
+            try {
+                val fileType: String = fileName.split(".")[1]
+                if (fileType == "jpg") {
+                    val image: ImageView = findViewById(R.id.mainFramePicture)
+                    image.setImageURI(file.uri)
+                    val innerPic: ImageView = findViewById(R.id.mainFrameNoImage)
+                    innerPic.visibility = View.INVISIBLE
+                    return false
+                }
+                for (type in supportedFiles) {
+                    return fileType == type
+                }
+            } catch (e: Exception) {
+                val ex = IllegalMediaException(fileName, e)
+                ex.printStackTrace()
             }
-        } catch (e: Exception){println("file doesn't support: $fileName")}
+        }
         return false
     }
 
@@ -84,47 +127,20 @@ class MainActivity : AppCompatActivity() {
         if (directory.isDirectory){
             for (file: DocumentFile in directory.listFiles()){
                 if (fileSupported(file)){
-                    val mediaItem: MediaItem = MediaItem.fromUri(file.uri)
-                    exoPlayer = ExoPlayer.Builder(this).build()
-                    exoPlayer.addMediaItem(mediaItem)
+                    mediaList.add(file.uri)
                 }
-            }
-        }
-    }
-    private fun onPlayButton() {
-        if (wasImported) {
-            val playButton: Button = findViewById(R.id.playButton)
-            if (!isPlaying) {
-                if (!playedYet) {
-                    exoPlayer.prepare()
-                    exoPlayer.play()
-                    playedYet = true
-                    isPlaying = true
-                    playButton.text = "Pause"
-                    val text: String = exoPlayer.toString()
-                    val songLabel: TextView = findViewById(R.id.songLabel)
-                    songLabel.text = text
-                } else {
-                    exoPlayer.play()
-                    isPlaying = true
-                    playButton.text = "Pause"
-                }
-            } else {
-                exoPlayer.pause()
-                isPlaying = false
-                playButton.text = "Play"
             }
         }
     }
 
 
-    private fun onStopButton(){
-        if (playedYet){
-            exoPlayer.stop()
-            isPlaying = false
-            playedYet = false
-            val playButton: Button = findViewById(R.id.playButton)
-            playButton.text = "Play"
-        }
+    override fun onDestroy(){
+        super.onDestroy()
+
+        service?.onDestroy()
+        unbindService(connection)
     }
+
 }
+
+class IllegalMediaException(fileName: String, e: Exception, message: String = "File not supported: $fileName; $e") : Exception(message)
