@@ -64,6 +64,8 @@ class MainActivity : AppCompatActivity() {
 
     @Suppress("DEPRECATION")
     private fun  onImport() {
+        service?.onStopButton(findViewById(R.id.playButton))
+        service?.resetPlayer()
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
 
         startActivityForResult(intent, REQUEST_CODE_OPEN_DIRECTORY)
@@ -127,7 +129,11 @@ class MainActivity : AppCompatActivity() {
         if (directory.isDirectory){
             for (file: DocumentFile in directory.listFiles()){
                 if (fileSupported(file)){
-                    mediaList.add(file.uri)
+                    if (service != null){
+                        service!!.addMedia(MediaItem.fromUri(file.uri))
+                    } else {
+                        mediaList.add(file.uri)
+                    }
                 }
             }
         }

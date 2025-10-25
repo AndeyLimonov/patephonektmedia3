@@ -133,4 +133,8 @@ class PlayerService : Service() {
             playButton.text = "Play"
         }
     }
+
+    fun resetPlayer() {
+        exoPlayer = ExoPlayer.Builder(this).build()
+    }
 }
