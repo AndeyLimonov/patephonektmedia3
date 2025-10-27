@@ -23,14 +23,16 @@ class MainActivity : AppCompatActivity() {
     var mediaList: ArrayList<Uri> = ArrayList()
 
     var service: PlayerService? = null
+    var hasSupFiles = false
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as PlayerService.LocalBinder
-            this@MainActivity.service = binder.getService()
-            for (mediaUri in mediaList){
-                val mediaItem = MediaItem.fromUri(mediaUri)
-                this@MainActivity.service?.addMedia(mediaItem)
-                this@MainActivity.service?.addSongLabel(findViewById(R.id.songLabel))
+            if (hasSupFiles){
+                val binder = service as PlayerService.LocalBinder
+                this@MainActivity.service = binder.getService()
+                for (mediaUri in mediaList){
+                    this@MainActivity.service?.addMedia(mediaUri)
+                    this@MainActivity.service?.addSongLabel(findViewById(R.id.songLabel))
+                }
             }
         }
 
@@ -88,7 +90,12 @@ class MainActivity : AppCompatActivity() {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(intent)
                         }
-                        bindService(intent, connection, BIND_AUTO_CREATE)
+                        try {
+                            bindService(intent, connection, BIND_AUTO_CREATE)
+                        } catch (e: Exception){
+                            val iME = IllegalMediaException(null, e, "no supported files found")
+                            iME.printStackTrace()
+                        }
 
                         listFiles(uri)
                     }
@@ -104,7 +111,8 @@ class MainActivity : AppCompatActivity() {
         val fileName: String? = file.name
         if (fileName != null) {
             try {
-                val fileType: String = fileName.split(".")[1]
+                val fileArr = fileName.split(".")
+                val fileType: String = fileArr[fileArr.size - 1]
                 if (fileType == "jpg") {
                     val image: ImageView = findViewById(R.id.mainFramePicture)
                     image.setImageURI(file.uri)
@@ -129,12 +137,14 @@ class MainActivity : AppCompatActivity() {
         if (directory.isDirectory){
             for (file: DocumentFile in directory.listFiles()){
                 if (fileSupported(file)){
+                    hasSupFiles = true
                     if (service != null){
-                        service!!.addMedia(MediaItem.fromUri(file.uri))
+                        service!!.addMedia(file.uri)
                     } else {
                         mediaList.add(file.uri)
                     }
                 }
+
             }
         }
     }
@@ -149,4 +159,4 @@ class MainActivity : AppCompatActivity() {
 
 }
 
-class IllegalMediaException(fileName: String, e: Exception, message: String = "File not supported: $fileName; $e") : Exception(message)
+class IllegalMediaException(fileName: String?, e: Exception, message: String = "File not supported: $fileName; $e") : Exception(message)

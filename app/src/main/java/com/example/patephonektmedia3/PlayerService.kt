@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -13,6 +14,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.core.app.ServiceCompat
+import androidx.documentfile.provider.DocumentFile
 import androidx.media3.common.C.WAKE_MODE_LOCAL
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -26,6 +28,7 @@ class PlayerService : Service() {
     private val binder = LocalBinder()
     val channelId: String? = "1"
     var wasPlayed = false
+    var uriArray = ArrayList<Uri>()
 
     lateinit var songLabel: TextView
 
@@ -36,7 +39,6 @@ class PlayerService : Service() {
     override fun onBind(intent: Intent): IBinder {
         return binder
     }
-
 
     @SuppressLint("ForegroundServiceType")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -79,7 +81,9 @@ class PlayerService : Service() {
         }
     }
 
-    fun addMedia(media: MediaItem){
+    fun addMedia(uri: Uri){
+        uriArray.add(uri)
+        val media = MediaItem.fromUri(uri)
         exoPlayer.addMediaItem(media)
     }
 
@@ -89,7 +93,7 @@ class PlayerService : Service() {
         if (!wasPlayed){
             wasPlayed = true
             exoPlayer.prepare()
-            songLabel.text = exoPlayer.currentMediaItem.toString()
+            setUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
         }
 
         val playButton: Button = view as Button
@@ -126,15 +130,21 @@ class PlayerService : Service() {
 
     @SuppressLint("SetTextI18n")
     fun onStopButton(playButton: Button) {
-        if (exoPlayer.isPlaying){
-            wasPlayed = false
-            exoPlayer.stop()
-            exoPlayer.seekToDefaultPosition()
-            playButton.text = "Play"
-        }
+        wasPlayed = false
+        exoPlayer.stop()
+        exoPlayer.seekToDefaultPosition()
+        playButton.text = "Play"
     }
 
     fun resetPlayer() {
+        exoPlayer.release()
         exoPlayer = ExoPlayer.Builder(this).build()
+    }
+    
+    fun setUI(i: Int, media: MediaItem?){
+        val file = DocumentFile.fromSingleUri(this, uriArray[i])
+        if (file != null) {
+            songLabel.text = file.name
+        }
     }
 }
