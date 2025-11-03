@@ -5,4 +5,10 @@
     <string name="channel_description">Player service needs this channel</string>
     <string name="notification_text">Patephone is here!</string>
     <string name="notification_label">Patephone</string>
+    <string name="play_button">Play</string>
+    <string name="prev_button">Prev</string>
+    <string name="import_button">import</string>
+    <string name="next_button">Next</string>
+    <string name="song_label_default">Absolutely nothing</string>
+    <string name="pause_button">Pause</string>
 </resources>

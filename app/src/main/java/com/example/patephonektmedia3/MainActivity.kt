@@ -1,20 +1,26 @@
 package com.example.patephonektmedia3
 
 import android.annotation.SuppressLint
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
-import androidx.media3.common.MediaItem
+import com.google.android.material.slider.Slider
+import java.util.Timer
+import java.util.TimerTask
 
 const val REQUEST_CODE_OPEN_DIRECTORY: Int = 1
 val supportedFiles: Array<String> = arrayOf("mp3")
@@ -35,8 +41,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
-        //хуй
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             service = null
@@ -62,6 +66,25 @@ class MainActivity : AppCompatActivity() {
 
         val stopButton: Button = findViewById(R.id.stopButton)
         stopButton.setOnClickListener { v -> service?.onStopButton(playButton) }
+
+        val slider: Slider = findViewById(R.id.slider)
+        slider.addOnChangeListener {slider, value, fromUser  -> service?.sliderMoved(slider, value, fromUser) }
+
+        val handler = Handler(Looper.getMainLooper())
+
+        val timerTask = object : TimerTask() {
+            override fun run() {
+                handler.post {
+                    val float: Float? = service?.getTime()
+                    if (float != null) {
+                        val clampedValue = float.coerceIn(0f, 1f)
+                        slider.value = clampedValue
+                    }
+                }
+            }
+        }
+        val timer = Timer()
+        timer.schedule(timerTask, 0, 1000)
     }
 
     @Suppress("DEPRECATION")
@@ -89,6 +112,14 @@ class MainActivity : AppCompatActivity() {
                         val context = applicationContext
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(intent)
+                        }
+                        val notificationManager = this.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                        if(!notificationManager.areNotificationsEnabled()){
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                val intentNotification = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                intentNotification.putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                                startActivity(intentNotification)
+                            }
                         }
                         try {
                             bindService(intent, connection, BIND_AUTO_CREATE)

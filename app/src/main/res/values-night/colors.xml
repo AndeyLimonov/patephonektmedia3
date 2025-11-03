@@ -2,4 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <color name="frame" tools:ignore="MissingDefaultResource">@color/secondary20</color>
     <color name="mainframe" tools:ignore="MissingDefaultResource">@color/primary40</color>
+    <color name="notificationButtonsBG">@color/primary80</color>
+    <color name="notificationButtonsFG">@color/secondary40</color>
 </resources>

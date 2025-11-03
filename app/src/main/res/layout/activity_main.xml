@@ -11,23 +11,23 @@
 
     <Button
         android:id="@+id/playButton"
-        android:layout_width="114dp"
+        android:layout_width="120dp"
         android:layout_height="148dp"
+        android:layout_marginEnd="15dp"
         android:background="@drawable/play_button"
-        android:text="Play"
+        android:text="@string/play_button"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.912"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.761" />
 
     <Button
         android:id="@+id/prevButton"
-        android:layout_width="130dp"
+        android:layout_width="0dp"
         android:layout_height="65dp"
-        android:text="Prev"
+        android:text="@string/prev_button"
         app:layout_constraintBottom_toTopOf="@+id/nextButton"
+        app:layout_constraintEnd_toEndOf="@+id/nextButton"
         app:layout_constraintStart_toStartOf="@+id/nextButton" />
 
     <Button
@@ -36,25 +36,27 @@
         android:layout_height="40dp"
         android:textColor="@color/importButtonText"
         android:background="@android:color/transparent"
-        android:text="import"
+        android:text="@string/import_button"
         android:textStyle="bold|italic"
-        android:textSize="17dp"
+        android:textSize="17sp"
         android:layout_marginTop="8dp"
         app:layout_constraintEnd_toEndOf="@+id/frameLayout"
         app:layout_constraintTop_toBottomOf="@+id/frameLayout" />
 
     <Button
         android:id="@+id/nextButton"
-        android:layout_width="130dp"
+        android:layout_width="0dp"
         android:layout_height="65dp"
-        android:layout_marginEnd="12dp"
-        android:width="90dp"
-        android:height="57dp"
-        android:text="Next"
+        android:minWidth="80dp"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:text="@string/next_button"
         app:layout_constraintBottom_toBottomOf="@+id/playButton"
-        app:layout_constraintEnd_toStartOf="@+id/playButton" />
+        app:layout_constraintEnd_toStartOf="@+id/playButton"
+        app:layout_constraintStart_toEndOf="@+id/stopButton" />
 
     <FrameLayout
+        android:id="@+id/frameLayout2"
         android:layout_width="294dp"
         android:layout_height="60dp"
         android:layout_marginTop="30dp"
@@ -81,7 +83,7 @@
                 android:layout_gravity="center"
                 android:foreground="@android:drawable/ic_media_next"
                 android:foregroundTint="@color/primary40"
-                android:foregroundTintMode="multiply"/>
+                android:foregroundTintMode="multiply" />
         </FrameLayout>
 
         <TextView
@@ -90,8 +92,9 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:maxWidth="180dp"
-            android:text="Absolutely nothing"
-            android:textSize="20dp"
+            android:text="@string/song_label_default"
+            android:textSize="20sp"
+            android:maxLines="2"
             android:textStyle="italic" />
     </FrameLayout>
 
@@ -99,7 +102,7 @@
         android:id="@+id/frameLayout"
         android:layout_width="300dp"
         android:layout_height="300dp"
-        android:layout_marginBottom="78dp"
+        android:layout_marginBottom="118dp"
         android:background="@drawable/main_frame"
         app:layout_constraintBottom_toTopOf="@+id/playButton"
         app:layout_constraintEnd_toEndOf="parent"
@@ -124,13 +127,26 @@
 
     <Button
         android:id="@+id/stopButton"
-        android:layout_width="91dp"
+        android:layout_width="0dp"
         android:layout_height="52dp"
-        android:layout_marginEnd="15dp"
+        android:layout_marginStart="15dp"
         android:text="Stop"
         app:layout_constraintBottom_toBottomOf="@+id/nextButton"
-        app:layout_constraintEnd_toStartOf="@+id/nextButton" />
+        app:layout_constraintStart_toStartOf="parent" />
 
+    <androidx.constraintlayout.widget.Guideline
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
 
-
+    <com.google.android.material.slider.Slider
+        android:id="@+id/slider"
+        android:layout_width="0dp"
+        android:layout_height="10dp"
+        android:layout_marginBottom="24dp"
+        android:valueFrom="0"
+        android:value="0"
+        android:valueTo="1"
+        app:layout_constraintBottom_toTopOf="@+id/prevButton"
+        app:layout_constraintEnd_toEndOf="@+id/playButton"
+        app:layout_constraintStart_toStartOf="@+id/stopButton" />
 </androidx.constraintlayout.widget.ConstraintLayout>

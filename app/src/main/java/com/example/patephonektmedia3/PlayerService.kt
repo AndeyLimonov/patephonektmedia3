@@ -12,24 +12,28 @@ import android.os.Build
 import android.os.IBinder
 import android.view.View
 import android.widget.Button
+import android.widget.RemoteViews
 import android.widget.TextView
+import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.media3.common.C.WAKE_MODE_LOCAL
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import java.lang.NullPointerException
-
+import com.example.patephonektmedia3.R.string.pause_button
+import com.google.android.material.slider.Slider
 
 class PlayerService : Service() {
-
+    lateinit var notificationManager: NotificationManager
     lateinit var exoPlayer: ExoPlayer
     lateinit var notification: Notification
     private val binder = LocalBinder()
-    val channelId: String? = "1"
+    val channelId: String = "1"
     var wasPlayed = false
     var uriArray = ArrayList<Uri>()
-
+    lateinit var notificationSmall: RemoteViews
+    lateinit var notificationBig: RemoteViews
     lateinit var songLabel: TextView
 
     inner class LocalBinder : Binder() {
@@ -42,16 +46,18 @@ class PlayerService : Service() {
 
     @SuppressLint("ForegroundServiceType")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        notificationSmall = RemoteViews(packageName, R.layout.notification_small)
+        notificationBig = RemoteViews(packageName, R.layout.notification_big)
         notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, channelId)
-                .setContentTitle("Patephone")
-                .setContentText("Patephone is here!")
+            NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(notificationSmall)
+                .setCustomBigContentView(notificationBig)
                 .build()
         } else {
-            throw NullPointerException("Bad sdk version")
+             throw kotlin.NullPointerException("Bad sdk version")
         }
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(1, notification)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -64,9 +70,21 @@ class PlayerService : Service() {
     override fun onCreate() {
         super.onCreate()
 
+        notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
         createChannel()
         exoPlayer = ExoPlayer.Builder(this).build()
         exoPlayer.setWakeMode(WAKE_MODE_LOCAL)
+        exoPlayer.addListener(object: Player.Listener{
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                super.onMediaItemTransition(mediaItem, reason)
+
+                try {
+                    setUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
+                } catch (_: UninitializedPropertyAccessException){}
+            }
+        })
+
     }
 
     fun createChannel(){
@@ -74,9 +92,11 @@ class PlayerService : Service() {
             val name = getString(R.string.channel_name)
             val descriptionText = getString(R.string.channel_description)
             val importance = NotificationManager.IMPORTANCE_DEFAULT
+
             val mChannel = NotificationChannel(channelId, name, importance)
+            mChannel.setSound(null, null)
+            mChannel.enableVibration(false)
             mChannel.description = descriptionText
-            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(mChannel)
         }
     }
@@ -87,7 +107,6 @@ class PlayerService : Service() {
         exoPlayer.addMediaItem(media)
     }
 
-    @SuppressLint("SetTextI18n")
     fun onPlay(view: View){
 
         if (!wasPlayed){
@@ -99,22 +118,24 @@ class PlayerService : Service() {
         val playButton: Button = view as Button
         if (!exoPlayer.isPlaying){
             exoPlayer.play()
-            playButton.text = "Pause"
+            playButton.text = getString(pause_button)
         } else {
             exoPlayer.pause()
-            playButton.text = "Play"
+            playButton.text = getString(R.string.play_button)
         }
     }
 
     fun onNextButton(){
         if (exoPlayer.hasNextMediaItem()){
             exoPlayer.seekToNext()
+            setUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
         }
     }
 
     fun onPrevButton(){
         if (exoPlayer.hasPreviousMediaItem()){
             exoPlayer.seekToPrevious()
+            setUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
         }
     }
 
@@ -128,23 +149,46 @@ class PlayerService : Service() {
         stopSelf()
     }
 
-    @SuppressLint("SetTextI18n")
     fun onStopButton(playButton: Button) {
         wasPlayed = false
         exoPlayer.stop()
         exoPlayer.seekToDefaultPosition()
-        playButton.text = "Play"
+        playButton.text = getString(R.string.play_button)
     }
 
     fun resetPlayer() {
+        uriArray = ArrayList()
         exoPlayer.release()
         exoPlayer = ExoPlayer.Builder(this).build()
+        wasPlayed = false
     }
     
     fun setUI(i: Int, media: MediaItem?){
-        val file = DocumentFile.fromSingleUri(this, uriArray[i])
+        val uri = uriArray[i]
+        val file = DocumentFile.fromSingleUri(this, uri)
         if (file != null) {
-            songLabel.text = file.name
+            val fileName = file.name
+            songLabel.text = fileName
+            notificationSmall.setTextViewText(R.id.notification_title, fileName)
+            notificationBig.setTextViewText(R.id.notification_title_big, fileName)
+            notificationSmall.setTextViewText(R.id.notification_description, media?.mediaMetadata?.artist)
+            notificationBig.setTextViewText(R.id.notification_description_big, media?.mediaMetadata?.artist)
+        }
+        notificationManager.notify(1, notification)
+    }
+
+    fun sliderMoved(slider: Slider, value: Float, fromUser: Boolean) {
+        if (fromUser){
+            val time: Long = (value*exoPlayer.duration).toLong()
+            exoPlayer.seekTo(time)
+        }
+    }
+
+    fun getTime(): Float? {
+        return try {
+            exoPlayer.currentPosition.toFloat()/exoPlayer.duration
+        } catch (_: IllegalStateException){
+            null
         }
     }
 }
