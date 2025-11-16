@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <color name="background">@color/material_dynamic_neutral10</color>
     <color name="frame" tools:ignore="MissingDefaultResource">@color/secondary20</color>
     <color name="mainframe" tools:ignore="MissingDefaultResource">@color/primary40</color>
     <color name="notificationButtonsBG">@color/primary80</color>

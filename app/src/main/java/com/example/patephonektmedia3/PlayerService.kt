@@ -81,12 +81,22 @@ class PlayerService : Service() {
 
                 try {
                     setUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
-                } catch (_: UninitializedPropertyAccessException){}
+                } catch (_: UninitializedPropertyAccessException){
+                    println("No textview initialized")
+                }
             }
         })
-
     }
-
+    fun getSongList(): ArrayList<String> {
+        val list = ArrayList<String>()
+        for (uri in uriArray){
+            val file = DocumentFile.fromSingleUri(this, uri)
+            if (file != null){
+                list.add(file.name)
+            }
+        }
+        return list
+    }
     fun createChannel(){
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = getString(R.string.channel_name)
@@ -190,5 +200,16 @@ class PlayerService : Service() {
         } catch (_: IllegalStateException){
             null
         }
+    }
+
+    fun updateUI() {
+        if (exoPlayer.currentMediaItem != null){
+            setUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
+        }
+    }
+
+    fun setSong(position: Int) {
+        exoPlayer.seekTo(position, 0)
+        setUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
     }
 }

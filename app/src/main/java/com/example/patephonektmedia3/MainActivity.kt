@@ -1,8 +1,12 @@
 package com.example.patephonektmedia3
 
+import android.animation.Animator
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.Uri
@@ -12,15 +16,26 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.util.TypedValue
+import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.ListView
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.children
 import androidx.documentfile.provider.DocumentFile
 import com.google.android.material.slider.Slider
 import java.util.Timer
 import java.util.TimerTask
+import androidx.core.view.isVisible
+
 
 const val REQUEST_CODE_OPEN_DIRECTORY: Int = 1
 val supportedFiles: Array<String> = arrayOf("mp3")
@@ -47,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -70,6 +86,23 @@ class MainActivity : AppCompatActivity() {
         val slider: Slider = findViewById(R.id.slider)
         slider.addOnChangeListener {slider, value, fromUser  -> service?.sliderMoved(slider, value, fromUser) }
 
+        val frameLayout: FrameLayout = findViewById(R.id.frameLayout2)
+        frameLayout.setOnClickListener {v -> onFrameClick(frameLayout)}
+
+        val root = findViewById<View>(R.id.main)
+        root.setOnTouchListener { v, event -> 
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                if (findViewById<ListView>(R.id.songList).isVisible) {
+                    val x = event.x
+                    val y = event.y
+                    if (!isPointInsideView(x, y, frameLayout)) {
+                        collapseFrame(frameLayout)
+                    }
+                }
+            }
+            false 
+        }
+
         val handler = Handler(Looper.getMainLooper())
 
         val timerTask = object : TimerTask() {
@@ -85,6 +118,119 @@ class MainActivity : AppCompatActivity() {
         }
         val timer = Timer()
         timer.schedule(timerTask, 0, 1000)
+    }
+
+    private fun collapseFrame(frameLayout: FrameLayout) {
+        //Target properties in DP:
+        val targetWidth = 294
+        val targetHeight = 60
+
+        val targetWidthPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            targetWidth.toFloat(),
+            resources.displayMetrics
+        ).toInt()
+
+        val targetHeightPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            targetHeight.toFloat(),
+            resources.displayMetrics
+        ).toInt()
+
+        val songList = findViewById<ListView>(R.id.songList)
+
+        val layoutParams = frameLayout.layoutParams
+
+        val widthAnimator = ValueAnimator.ofInt(frameLayout.width, targetWidthPx)
+        widthAnimator.addUpdateListener { animation ->
+            layoutParams.width = animation.animatedValue as Int
+            frameLayout.layoutParams = layoutParams
+        }
+        val heightAnimator = ValueAnimator.ofInt(frameLayout.height, targetHeightPx)
+        heightAnimator.addUpdateListener { animation ->
+            layoutParams.height = animation.animatedValue as Int
+            frameLayout.layoutParams = layoutParams
+        }
+
+        widthAnimator.duration = 300
+        heightAnimator.duration = 300
+
+        widthAnimator.start()
+        heightAnimator.start()
+
+
+        for (child in frameLayout.children){
+            if (child.id != R.id.songList) {
+                val opacityAnimator: ObjectAnimator = ObjectAnimator.ofFloat(child, "alpha", 0f, 1f)
+                opacityAnimator.duration = 300
+                opacityAnimator.start()
+            } else {
+                val opacityAnimator: ObjectAnimator = ObjectAnimator.ofFloat(child, "alpha", 1f, 0f)
+                opacityAnimator.duration = 300
+                opacityAnimator.addListener(object: Animator.AnimatorListener {
+                    override fun onAnimationEnd(animation: Animator) {
+                        songList.visibility = View.INVISIBLE
+                    }
+
+                    override fun onAnimationCancel(animation: Animator) {}
+
+                    override fun onAnimationRepeat(animation: Animator) {}
+
+                    override fun onAnimationStart(animation: Animator) {}
+                })
+                opacityAnimator.start()
+            }
+        }
+    }
+
+
+    private fun isPointInsideView(x: Float, y: Float, view: View): Boolean {
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        return x >= location[0] && x <= location[0] + view.width &&
+                y >= location[1] && y <= location[1] + view.height
+    }
+    private fun onFrameClick(frameLayout: FrameLayout) {
+        if (service == null){return}
+
+        val layoutParams = frameLayout.layoutParams
+
+        val widthAnimator = ValueAnimator.ofInt(frameLayout.width, resources.displayMetrics.widthPixels)
+        widthAnimator.addUpdateListener { animation ->
+            layoutParams.width = animation.animatedValue as Int
+            frameLayout.layoutParams = layoutParams
+        }
+        val heightAnimator = ValueAnimator.ofInt(frameLayout.height, 450)
+        heightAnimator.addUpdateListener { animation ->
+            layoutParams.height = animation.animatedValue as Int
+            frameLayout.layoutParams = layoutParams
+        }
+
+        widthAnimator.duration = 300
+        heightAnimator.duration = 300
+
+        widthAnimator.start()
+        heightAnimator.start()
+
+        val songList: ListView = findViewById(R.id.songList)
+        for (child in frameLayout.children){
+            if (child.id != R.id.songList) {
+                val opacityAnimator: ObjectAnimator = ObjectAnimator.ofFloat(child, "alpha", 1f, 0f)
+                opacityAnimator.duration = 300
+                opacityAnimator.start()
+            } else {
+                songList.visibility = View.VISIBLE
+                val opacityAnimator: ObjectAnimator = ObjectAnimator.ofFloat(child, "alpha", 0f, 1f)
+                opacityAnimator.duration = 300
+                opacityAnimator.start()
+            }
+        }
+        songList.visibility = View.VISIBLE
+        val songNameList = service?.getSongList()
+
+        val adapter = MyListAdapter(this, songNameList!!, service)
+        songList.adapter = adapter
+
     }
 
     @Suppress("DEPRECATION")
@@ -162,6 +308,11 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
+    override fun onResume(){
+        super.onResume()
+        service?.updateUI()
+    }
+
     @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
     private fun listFiles(uri: Uri) {
         val directory: DocumentFile = DocumentFile.fromTreeUri(this, uri)
@@ -188,6 +339,25 @@ class MainActivity : AppCompatActivity() {
         unbindService(connection)
     }
 
+}
+
+class MyListAdapter(context: Context, items: ArrayList<String>, val service: PlayerService?) : ArrayAdapter<String>(context, 0, items) {
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val item = getItem(position) ?: return convertView!!
+
+        val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.list_item, parent, false)
+        val textView = view.findViewById<TextView>(R.id.item_text)
+        textView.text = item
+
+        view.setOnClickListener { v -> setSong(position) }
+
+        return view
+    }
+
+    private fun setSong(position: Int) {
+        service?.setSong(position)
+    }
 }
 
 class IllegalMediaException(fileName: String?, e: Exception, message: String = "File not supported: $fileName; $e") : Exception(message)

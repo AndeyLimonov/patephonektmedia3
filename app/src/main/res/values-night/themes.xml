@@ -3,7 +3,7 @@
     <style name="Base.Theme.Patephone" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your dark theme here. -->
         <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
-        <item name="background">@color/material_dynamic_neutral10</item>
+        <item name="background">@color/background</item>
         <item name="colorPrimary">@color/primary80</item>
         <item name="colorOnPrimary">@color/secondary40</item>
     </style>
