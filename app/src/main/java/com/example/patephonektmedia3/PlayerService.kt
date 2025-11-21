@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+import android.media.session.MediaSession
 import android.net.Uri
 import android.os.Binder
 import android.os.Build
@@ -35,6 +36,7 @@ class PlayerService : Service() {
     lateinit var notificationSmall: RemoteViews
     lateinit var notificationBig: RemoteViews
     lateinit var songLabel: TextView
+    lateinit var mediaSession: MediaSession
 
     inner class LocalBinder : Binder() {
         fun getService(): PlayerService = this@PlayerService
@@ -69,6 +71,16 @@ class PlayerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
+        //Initializing mediaSession object
+        mediaSession = MediaSession(this, "PlayerSession")
+        mediaSession.setCallback(object: MediaSession.Callback() {
+            override fun onPlay(){
+                super.onPlay()
+
+                onPlay()
+            }
+        })
 
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
@@ -178,13 +190,13 @@ class PlayerService : Service() {
         val file = DocumentFile.fromSingleUri(this, uri)
         if (file != null) {
             val fileName = file.name
-            songLabel.text = fileName
             notificationSmall.setTextViewText(R.id.notification_title, fileName)
             notificationBig.setTextViewText(R.id.notification_title_big, fileName)
             notificationSmall.setTextViewText(R.id.notification_description, media?.mediaMetadata?.artist)
             notificationBig.setTextViewText(R.id.notification_description_big, media?.mediaMetadata?.artist)
+            notificationManager.notify(1, notification)
+            songLabel.text = fileName
         }
-        notificationManager.notify(1, notification)
     }
 
     fun sliderMoved(slider: Slider, value: Float, fromUser: Boolean) {

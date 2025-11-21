@@ -11,4 +11,5 @@
     <string name="next_button">Next</string>
     <string name="song_label_default">Absolutely nothing</string>
     <string name="pause_button">Pause</string>
+    <string name="stop_button">Stop</string>
 </resources>

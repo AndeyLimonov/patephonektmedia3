@@ -9,6 +9,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.media.session.MediaSession
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -30,17 +31,16 @@ import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.children
+import androidx.core.view.isVisible
 import androidx.documentfile.provider.DocumentFile
 import com.google.android.material.slider.Slider
 import java.util.Timer
 import java.util.TimerTask
-import androidx.core.view.isVisible
-
 
 const val REQUEST_CODE_OPEN_DIRECTORY: Int = 1
 val supportedFiles: Array<String> = arrayOf("mp3")
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(){
     var mediaList: ArrayList<Uri> = ArrayList()
 
     var service: PlayerService? = null
@@ -90,7 +90,7 @@ class MainActivity : AppCompatActivity() {
         frameLayout.setOnClickListener {v -> onFrameClick(frameLayout)}
 
         val root = findViewById<View>(R.id.main)
-        root.setOnTouchListener { v, event -> 
+        root.setOnTouchListener { v, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 if (findViewById<ListView>(R.id.songList).isVisible) {
                     val x = event.x
@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
-            false 
+            false
         }
 
         val handler = Handler(Looper.getMainLooper())
@@ -124,21 +124,26 @@ class MainActivity : AppCompatActivity() {
         //Target properties in DP:
         val targetWidth = 294
         val targetHeight = 60
+        val targetMarginBottom = 100
 
+        //Converting values to pixels
         val targetWidthPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             targetWidth.toFloat(),
             resources.displayMetrics
         ).toInt()
-
         val targetHeightPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             targetHeight.toFloat(),
             resources.displayMetrics
         ).toInt()
+        val targetMarginBottomPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            targetMarginBottom.toFloat(),
+            resources.displayMetrics
+        ).toInt()
 
-        val songList = findViewById<ListView>(R.id.songList)
-
+        //Starting animations
         val layoutParams = frameLayout.layoutParams
 
         val widthAnimator = ValueAnimator.ofInt(frameLayout.width, targetWidthPx)
@@ -158,7 +163,18 @@ class MainActivity : AppCompatActivity() {
         widthAnimator.start()
         heightAnimator.start()
 
+        //Margin animation
+        val params = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
+        val marginAnimation = ValueAnimator.ofInt(params.bottomMargin, targetMarginBottomPx)
+        marginAnimation.addUpdateListener { animation ->
+            params.bottomMargin = animation.animatedValue as Int
+            frameLayout.layoutParams = params
+        }
+        marginAnimation.duration = 300
+        marginAnimation.start()
 
+        //Animating alpha for all frameLayout children
+        val songList = findViewById<ListView>(R.id.songList)
         for (child in frameLayout.children){
             if (child.id != R.id.songList) {
                 val opacityAnimator: ObjectAnimator = ObjectAnimator.ofFloat(child, "alpha", 0f, 1f)
@@ -181,36 +197,83 @@ class MainActivity : AppCompatActivity() {
                 opacityAnimator.start()
             }
         }
+        //Setting main frame visible
+        mainFrameAnimator(true)
     }
 
+    //Use true to set frame visible or false to set it invisible
+    private fun mainFrameAnimator(arg: Boolean) {
+        val mainFrame = findViewById<FrameLayout>(R.id.frameLayout)
+        var objectAnimator: ObjectAnimator
 
+        if (arg){
+            objectAnimator = ObjectAnimator.ofFloat(mainFrame, "alpha", 0f, 1f)
+            objectAnimator.duration = 300
+            objectAnimator.addListener(object: Animator.AnimatorListener {
+                override fun onAnimationStart(animation: Animator) {
+                    mainFrame.visibility = View.VISIBLE
+                }
+
+                override fun onAnimationEnd(animation: Animator) {}
+                override fun onAnimationCancel(animation: Animator) {}
+                override fun onAnimationRepeat(animation: Animator) {}
+            })
+        } else{
+            objectAnimator = ObjectAnimator.ofFloat(mainFrame, "alpha", 1f, 0f)
+            objectAnimator.duration = 300
+            objectAnimator.addListener(object: Animator.AnimatorListener{
+                override fun onAnimationEnd(animation: Animator) {
+                    mainFrame.visibility = View.INVISIBLE
+                }
+
+                override fun onAnimationCancel(animation: Animator) {}
+                override fun onAnimationStart(animation: Animator) {}
+                override fun onAnimationRepeat(animation: Animator) {}
+            })
+        }
+        objectAnimator.start()
+    }
     private fun isPointInsideView(x: Float, y: Float, view: View): Boolean {
         val location = IntArray(2)
         view.getLocationOnScreen(location)
         return x >= location[0] && x <= location[0] + view.width &&
                 y >= location[1] && y <= location[1] + view.height
     }
+
     private fun onFrameClick(frameLayout: FrameLayout) {
         if (service == null){return}
 
         val layoutParams = frameLayout.layoutParams
+        val displayMetrics = resources.displayMetrics
 
-        val widthAnimator = ValueAnimator.ofInt(frameLayout.width, resources.displayMetrics.widthPixels)
+        val widthAnimator = ValueAnimator.ofInt(frameLayout.width, displayMetrics.widthPixels)
         widthAnimator.addUpdateListener { animation ->
             layoutParams.width = animation.animatedValue as Int
             frameLayout.layoutParams = layoutParams
         }
-        val heightAnimator = ValueAnimator.ofInt(frameLayout.height, 450)
+        val heightAnimator = ValueAnimator.ofInt(frameLayout.height, displayMetrics.heightPixels/2)//Cause frame should take a half
         heightAnimator.addUpdateListener { animation ->
             layoutParams.height = animation.animatedValue as Int
             frameLayout.layoutParams = layoutParams
         }
+        //Setting main frame visible
+        mainFrameAnimator(false)
 
         widthAnimator.duration = 300
         heightAnimator.duration = 300
 
         widthAnimator.start()
         heightAnimator.start()
+
+        //Margin animation
+        val params = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
+        val marginAnimation = ValueAnimator.ofInt(params.bottomMargin, 0)
+        marginAnimation.addUpdateListener { animation ->
+            params.bottomMargin = animation.animatedValue as Int
+            frameLayout.layoutParams = params
+        }
+        marginAnimation.duration = 300
+        marginAnimation.start()
 
         val songList: ListView = findViewById(R.id.songList)
         for (child in frameLayout.children){
@@ -230,15 +293,11 @@ class MainActivity : AppCompatActivity() {
 
         val adapter = MyListAdapter(this, songNameList!!, service)
         songList.adapter = adapter
-
     }
 
     @Suppress("DEPRECATION")
     private fun  onImport() {
-        service?.onStopButton(findViewById(R.id.playButton))
-        service?.resetPlayer()
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-
         startActivityForResult(intent, REQUEST_CODE_OPEN_DIRECTORY)
     }
 
@@ -247,6 +306,10 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
 
             if (requestCode == REQUEST_CODE_OPEN_DIRECTORY && resultCode == RESULT_OK){
+                //Reset service if it was initialized
+                service?.onStopButton(findViewById(R.id.playButton))
+                service?.resetPlayer()
+
                 if (data != null){
                     val uri: Uri? = data.data
                     if (uri != null) {
@@ -278,7 +341,7 @@ class MainActivity : AppCompatActivity() {
                     }
 
                 }
-            }
+            } else {return}
     }
 
     private fun fileSupported(file: DocumentFile): Boolean {
@@ -310,8 +373,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume(){
         super.onResume()
+        service?.addSongLabel(findViewById(R.id.songLabel))
         service?.updateUI()
     }
+
 
     @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
     private fun listFiles(uri: Uri) {
@@ -331,14 +396,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     override fun onDestroy(){
         super.onDestroy()
 
         service?.onDestroy()
         unbindService(connection)
     }
-
 }
 
 class MyListAdapter(context: Context, items: ArrayList<String>, val service: PlayerService?) : ArrayAdapter<String>(context, 0, items) {
