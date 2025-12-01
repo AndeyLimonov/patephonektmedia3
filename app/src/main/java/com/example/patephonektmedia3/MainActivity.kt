@@ -9,7 +9,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.media.session.MediaSession
+import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -30,6 +32,7 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.children
 import androidx.core.view.isVisible
 import androidx.documentfile.provider.DocumentFile
@@ -41,6 +44,7 @@ const val REQUEST_CODE_OPEN_DIRECTORY: Int = 1
 val supportedFiles: Array<String> = arrayOf("mp3")
 
 class MainActivity : AppCompatActivity(){
+    val artists =  ArrayList<String>()
     var mediaList: ArrayList<Uri> = ArrayList()
 
     var service: PlayerService? = null
@@ -50,10 +54,27 @@ class MainActivity : AppCompatActivity(){
             if (hasSupFiles){
                 val binder = service as PlayerService.LocalBinder
                 this@MainActivity.service = binder.getService()
+                this@MainActivity.service?.addMedia(mediaList)
                 for (mediaUri in mediaList){
-                    this@MainActivity.service?.addMedia(mediaUri)
                     this@MainActivity.service?.addSongLabel(findViewById(R.id.songLabel))
+                    artists.add(getArtist(mediaUri))
+
                 }
+                this@MainActivity.service?.addArtists(artists)
+            }
+        }
+
+        fun getArtist(mediaUri: Uri): String {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(applicationContext, mediaUri)
+                val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                return artist ?: "Unknown"
+            } catch (e: Exception) {
+                e.printStackTrace()
+                return "Unknown"
+            } finally {
+                retriever.release()
             }
         }
 
@@ -84,7 +105,7 @@ class MainActivity : AppCompatActivity(){
         stopButton.setOnClickListener { v -> service?.onStopButton(playButton) }
 
         val slider: Slider = findViewById(R.id.slider)
-        slider.addOnChangeListener {slider, value, fromUser  -> service?.sliderMoved(slider, value, fromUser) }
+        slider.addOnChangeListener {slider, value, fromUser  -> service?.sliderMoved(value, fromUser) }
 
         val frameLayout: FrameLayout = findViewById(R.id.frameLayout2)
         frameLayout.setOnClickListener {v -> onFrameClick(frameLayout)}
@@ -288,11 +309,14 @@ class MainActivity : AppCompatActivity(){
                 opacityAnimator.start()
             }
         }
-        songList.visibility = View.VISIBLE
         val songNameList = service?.getSongList()
+        val currentSong = service?.getCurrentSong()?: ""
+        val position = songNameList?.indexOf(currentSong) ?: 0
 
-        val adapter = MyListAdapter(this, songNameList!!, service)
+        //Fill songList
+        val adapter = MyListAdapter(this, songNameList!!, service, currentSong)
         songList.adapter = adapter
+        songList.setSelection(position)
     }
 
     @Suppress("DEPRECATION")
@@ -306,6 +330,9 @@ class MainActivity : AppCompatActivity(){
         super.onActivityResult(requestCode, resultCode, data)
 
             if (requestCode == REQUEST_CODE_OPEN_DIRECTORY && resultCode == RESULT_OK){
+                if (findViewById<ListView>(R.id.songList).isVisible){
+                    collapseFrame(findViewById(R.id.frameLayout2))
+                }
                 //Reset service if it was initialized
                 service?.onStopButton(findViewById(R.id.playButton))
                 service?.resetPlayer()
@@ -317,19 +344,14 @@ class MainActivity : AppCompatActivity(){
                             uri,
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
+
+                        //Starting service
                         val intent = Intent(this, PlayerService::class.java)
                         val context = applicationContext
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(intent)
                         }
-                        val notificationManager = this.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                        if(!notificationManager.areNotificationsEnabled()){
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                val intentNotification = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                intentNotification.putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                                startActivity(intentNotification)
-                            }
-                        }
+
                         try {
                             bindService(intent, connection, BIND_AUTO_CREATE)
                         } catch (e: Exception){
@@ -375,6 +397,7 @@ class MainActivity : AppCompatActivity(){
         super.onResume()
         service?.addSongLabel(findViewById(R.id.songLabel))
         service?.updateUI()
+        service?.updatePlayButton(findViewById(R.id.playButton))
     }
 
 
@@ -385,11 +408,7 @@ class MainActivity : AppCompatActivity(){
             for (file: DocumentFile in directory.listFiles()){
                 if (fileSupported(file)){
                     hasSupFiles = true
-                    if (service != null){
-                        service!!.addMedia(file.uri)
-                    } else {
-                        mediaList.add(file.uri)
-                    }
+                    mediaList.add(file.uri)
                 }
 
             }
@@ -404,22 +423,36 @@ class MainActivity : AppCompatActivity(){
     }
 }
 
-class MyListAdapter(context: Context, items: ArrayList<String>, val service: PlayerService?) : ArrayAdapter<String>(context, 0, items) {
+class MyListAdapter(context: Context, items: ArrayList<String>, val service: PlayerService?, var currentSong: String) : ArrayAdapter<String>(context, 0, items) {
+    lateinit var currentSongView: View
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         val item = getItem(position) ?: return convertView!!
 
         val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.list_item, parent, false)
+        view.setBackgroundResource(R.drawable.frame)
         val textView = view.findViewById<TextView>(R.id.item_text)
         textView.text = item
 
-        view.setOnClickListener { v -> setSong(position) }
+        view.setOnClickListener { v -> setSong(position, view) }
+
+        //Light frame for current song
+        if (item == currentSong){
+            val drawable = view.background as Drawable
+            drawable.setTint(ContextCompat.getColor(context, R.color.activeSongInFrame))
+            view.invalidate()
+        } else {
+            view.setBackgroundColor(Color.TRANSPARENT)
+        }
 
         return view
     }
 
-    private fun setSong(position: Int) {
+    private fun setSong(position: Int, view: View) {
+        currentSongView = view
+        notifyDataSetChanged()
         service?.setSong(position)
+        currentSong = service?.getCurrentSong() ?: ""
     }
 }
 

@@ -15,4 +15,5 @@
     <color name="notificationButtonsBG">@color/primary60</color>
     <color name="notificationButtonsFG">@color/secondary80</color>
     <color name="background">@color/material_dynamic_neutral80</color>
+    <color name="activeSongInFrame">@color/material_dynamic_neutral80</color>
 </resources>

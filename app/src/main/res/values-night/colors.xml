@@ -5,4 +5,5 @@
     <color name="mainframe" tools:ignore="MissingDefaultResource">@color/primary40</color>
     <color name="notificationButtonsBG">@color/primary80</color>
     <color name="notificationButtonsFG">@color/secondary40</color>
+    <color name="activeSongInFrame">@color/material_dynamic_secondary30</color>
 </resources>
