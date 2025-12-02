@@ -4,7 +4,6 @@ import android.animation.Animator
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
-import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -18,7 +17,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -44,8 +43,9 @@ const val REQUEST_CODE_OPEN_DIRECTORY: Int = 1
 val supportedFiles: Array<String> = arrayOf("mp3")
 
 class MainActivity : AppCompatActivity(){
-    val artists =  ArrayList<String>()
-    var mediaList: ArrayList<Uri> = ArrayList()
+    private var titles =  ArrayList<String>()
+    private var artists =  ArrayList<String>()
+    private var mediaList: ArrayList<Uri> = ArrayList()
 
     var service: PlayerService? = null
     var hasSupFiles = false
@@ -56,14 +56,29 @@ class MainActivity : AppCompatActivity(){
                 this@MainActivity.service = binder.getService()
                 this@MainActivity.service?.addMedia(mediaList)
                 for (mediaUri in mediaList){
-                    this@MainActivity.service?.addSongLabel(findViewById(R.id.songLabel))
+                    this@MainActivity.service?.addLabels(findViewById(R.id.songLabel), findViewById(R.id.artistLabel))
+                    titles.add(getTitle(mediaUri))
                     artists.add(getArtist(mediaUri))
 
                 }
+                this@MainActivity.service?.addTitles(titles)
                 this@MainActivity.service?.addArtists(artists)
             }
         }
 
+        fun getTitle(mediaUri: Uri): String {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(applicationContext, mediaUri)
+                val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                return title ?: DocumentFile.fromSingleUri(applicationContext, mediaUri).name
+            } catch (e: Exception) {
+                e.printStackTrace()
+                return "Unknown"
+            } finally {
+                retriever.release()
+            }
+        }
         fun getArtist(mediaUri: Uri): String {
             val retriever = MediaMetadataRetriever()
             try {
@@ -83,6 +98,26 @@ class MainActivity : AppCompatActivity(){
         }
     }
 
+    override fun onNewIntent(intent: Intent?) {
+        when (intent?.action){
+            "ACTION_PLAY_BUTTON_TEXT" -> onChangePlayButton(intent)
+        }
+        super.onNewIntent(intent)
+    }
+
+    private fun onChangePlayButton(intent: Intent) {
+        val button = findViewById<Button>(R.id.playButton)
+
+        val text = when (intent.getBooleanExtra("PLAYING", false)){
+            true -> ContextCompat.getString(applicationContext, R.string.pause_button)
+            false -> ContextCompat.getString(applicationContext, R.string.play_button)
+        }
+        button.text = text
+
+        Log.d("MainActivity", "Button text changed: $text, ${intent.getBooleanExtra("PLAYING", false)}")
+    }
+
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,7 +128,7 @@ class MainActivity : AppCompatActivity(){
         importButton.setOnClickListener { v -> onImport() }
 
         val playButton: Button = findViewById(R.id.playButton)
-        playButton.setOnClickListener { v -> service?.onPlay(v) }
+        playButton.setOnClickListener { v -> service?.onPlay() }
 
         val nextButton: Button = findViewById(R.id.nextButton)
         nextButton.setOnClickListener { v -> service?.onNextButton() }
@@ -102,7 +137,7 @@ class MainActivity : AppCompatActivity(){
         prevButton.setOnClickListener { v -> service?.onPrevButton() }
 
         val stopButton: Button = findViewById(R.id.stopButton)
-        stopButton.setOnClickListener { v -> service?.onStopButton(playButton) }
+        stopButton.setOnClickListener { v -> service?.onStopButton() }
 
         val slider: Slider = findViewById(R.id.slider)
         slider.addOnChangeListener {slider, value, fromUser  -> service?.sliderMoved(value, fromUser) }
@@ -126,7 +161,7 @@ class MainActivity : AppCompatActivity(){
 
         val handler = Handler(Looper.getMainLooper())
 
-        val timerTask = object : TimerTask() {
+        val sliderTask = object : TimerTask() {
             override fun run() {
                 handler.post {
                     val float: Float? = service?.getTime()
@@ -137,8 +172,9 @@ class MainActivity : AppCompatActivity(){
                 }
             }
         }
-        val timer = Timer()
-        timer.schedule(timerTask, 0, 1000)
+        val sliderTimer = Timer()
+        sliderTimer.schedule(sliderTask, 0, 1000)
+
     }
 
     private fun collapseFrame(frameLayout: FrameLayout) {
@@ -334,9 +370,18 @@ class MainActivity : AppCompatActivity(){
                     collapseFrame(findViewById(R.id.frameLayout2))
                 }
                 //Reset service if it was initialized
-                service?.onStopButton(findViewById(R.id.playButton))
-                service?.resetPlayer()
+                val intent = Intent(applicationContext, PlayerService::class.java)
 
+                if (service != null){
+                    service?.onDestroy()
+                    unbindService(connection)
+                }
+
+                mediaList = ArrayList()
+                titles = ArrayList()
+                artists = ArrayList()
+
+                service = null
                 if (data != null){
                     val uri: Uri? = data.data
                     if (uri != null) {
@@ -344,14 +389,11 @@ class MainActivity : AppCompatActivity(){
                             uri,
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
-
                         //Starting service
-                        val intent = Intent(this, PlayerService::class.java)
                         val context = applicationContext
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(intent)
                         }
-
                         try {
                             bindService(intent, connection, BIND_AUTO_CREATE)
                         } catch (e: Exception){
@@ -395,9 +437,8 @@ class MainActivity : AppCompatActivity(){
 
     override fun onResume(){
         super.onResume()
-        service?.addSongLabel(findViewById(R.id.songLabel))
+        service?.addLabels(findViewById(R.id.songLabel), findViewById(R.id.artistLabel))
         service?.updateUI()
-        service?.updatePlayButton(findViewById(R.id.playButton))
     }
 
 

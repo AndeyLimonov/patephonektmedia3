@@ -44,10 +44,27 @@
             android:textColor="@color/importButtonText"
             android:background="@android:color/transparent"
             android:text="@string/import_button"
+            android:gravity="end"
             android:textStyle="bold|italic"
             android:textSize="17sp"
             android:layout_marginTop="8dp"
             app:layout_constraintEnd_toEndOf="@+id/frameLayout"
+            app:layout_constraintTop_toBottomOf="@+id/frameLayout" />
+
+
+        <TextView
+            android:id="@+id/artistLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="@string/artist"
+            android:textColor="@color/importButtonText"
+            android:textSize="17sp"
+            android:textStyle="bold|italic"
+            app:layout_constraintEnd_toStartOf="@+id/importButton"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="@+id/frameLayout"
             app:layout_constraintTop_toBottomOf="@+id/frameLayout" />
 
         <Button
