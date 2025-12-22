@@ -5,11 +5,8 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.graphics.Color
-import android.graphics.drawable.Drawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -19,16 +16,13 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.util.TypedValue
-import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.ListView
-import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -174,7 +168,6 @@ class MainActivity : AppCompatActivity(){
         }
         val sliderTimer = Timer()
         sliderTimer.schedule(sliderTask, 0, 1000)
-
     }
 
     private fun collapseFrame(frameLayout: FrameLayout) {
@@ -350,7 +343,7 @@ class MainActivity : AppCompatActivity(){
         val position = songNameList?.indexOf(currentSong) ?: 0
 
         //Fill songList
-        val adapter = MyListAdapter(this, songNameList!!, service, currentSong)
+        val adapter = ListAdapter(this, songNameList!!, service, currentSong)
         songList.adapter = adapter
         songList.setSelection(position)
     }
@@ -463,38 +456,3 @@ class MainActivity : AppCompatActivity(){
         unbindService(connection)
     }
 }
-
-class MyListAdapter(context: Context, items: ArrayList<String>, val service: PlayerService?, var currentSong: String) : ArrayAdapter<String>(context, 0, items) {
-    lateinit var currentSongView: View
-
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-        val item = getItem(position) ?: return convertView!!
-
-        val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.list_item, parent, false)
-        view.setBackgroundResource(R.drawable.frame)
-        val textView = view.findViewById<TextView>(R.id.item_text)
-        textView.text = item
-
-        view.setOnClickListener { v -> setSong(position, view) }
-
-        //Light frame for current song
-        if (item == currentSong){
-            val drawable = view.background as Drawable
-            drawable.setTint(ContextCompat.getColor(context, R.color.activeSongInFrame))
-            view.invalidate()
-        } else {
-            view.setBackgroundColor(Color.TRANSPARENT)
-        }
-
-        return view
-    }
-
-    private fun setSong(position: Int, view: View) {
-        currentSongView = view
-        notifyDataSetChanged()
-        service?.setSong(position)
-        currentSong = service?.getCurrentSong() ?: ""
-    }
-}
-
-class IllegalMediaException(fileName: String?, e: Exception, message: String = "File not supported: $fileName; $e") : Exception(message)

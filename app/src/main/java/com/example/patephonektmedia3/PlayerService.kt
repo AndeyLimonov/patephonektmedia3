@@ -1,4 +1,5 @@
 package com.example.patephonektmedia3
+
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
@@ -10,8 +11,11 @@ import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
 import android.net.Uri
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
@@ -21,20 +25,22 @@ import androidx.media3.common.C.WAKE_MODE_LOCAL
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import java.util.Timer
+import java.util.TimerTask
 
 class PlayerService : Service() {
+    private val binder = LocalBinder()
     lateinit var notificationManager: NotificationManager
     lateinit var exoPlayer: ExoPlayer
-    lateinit var notification: Notification
-    private val binder = LocalBinder()
-    val channelId: String = "1"
-    var wasPlayed = false
-    var uriArray: ArrayList<Uri>? = null
     lateinit var songLabel: TextView
     lateinit var artistLabel: TextView
     lateinit var mediaSession: MediaSessionCompat
-    var titles: ArrayList<String>? = null
-    var artists: ArrayList<String>? = null
+    var timer: Timer? = null
+    var wasPlayed = false
+    var uriArray: ArrayList<Uri>? = null
+    var titles = arrayOf("Absolutely nothing")
+    var artists = arrayOf("")
+    val channelId: String = "1"
 
     inner class LocalBinder : Binder() {
         fun getService(): PlayerService = this@PlayerService
@@ -58,16 +64,16 @@ class PlayerService : Service() {
 
     fun onServiceStarted(){
         initMediaSession()
-        updateNotification()
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceCompat.startForeground(
                 this,
                 1,
-                notification,
+                getNotification(),
                 FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
             )
+            notificationManager.notify(1, getNotification())
         }
+
     }
 
     private fun createActionPendingEvent(action: String): PendingIntent? {
@@ -78,26 +84,10 @@ class PlayerService : Service() {
     }
 
     private fun initMediaSession() {
-//        val mediaButtonReceiver = MediaButtonReceiver()
-//        val filter = IntentFilter(Intent.ACTION_MEDIA_BUTTON)
-//        registerReceiver(mediaButtonReceiver, filter)
-
         mediaSession = MediaSessionCompat(this, "PlayerService").apply {
 //            setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
             isActive = true
         }
-
-//        val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).apply {
-//            setPackage(packageName)
-//        }
-//
-//        val mediaButtonPendingIntent = PendingIntent.getBroadcast(
-//            this,
-//            0,
-//            mediaButtonIntent,
-//            PendingIntent.FLAG_IMMUTABLE
-//        )
-
     }
 
     override fun onCreate() {
@@ -114,8 +104,8 @@ class PlayerService : Service() {
 
                 try {
                     updateUI()
-                    updateNotification()
-                } catch (_: UninitializedPropertyAccessException){
+                    notificationManager.notify(1, getNotification())
+                } catch (_: UninitializedPropertyAccessException) {
                     println("No textview initialized")
                 }
             }
@@ -163,13 +153,30 @@ class PlayerService : Service() {
             exoPlayer.prepare()
             updateUI()
         }
+
         var playing = exoPlayer.isPlaying
         if (!playing){
             exoPlayer.play()
+            setPlaybackState(PlaybackStateCompat.STATE_PLAYING)
+            timer = Timer()
+            val handler = Handler(Looper.getMainLooper())
+            timer!!.schedule(
+                object: TimerTask(){
+                    override fun run() {
+                        handler.post {
+                            notificationManager.notify(1, getNotification())
+                        }
+                    }
+                },
+                0, 1000
+            )
         } else {
             exoPlayer.pause()
+            setPlaybackState(PlaybackStateCompat.STATE_PAUSED)
+            timer?.cancel()
         }
         playing = !playing
+
         val intent = Intent(this, MainActivity::class.java).apply {
             action = "ACTION_PLAY_BUTTON_TEXT"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -179,6 +186,13 @@ class PlayerService : Service() {
         Log.d("PlayerService", "Starting intent: ${intent.action} with value ${intent.getBooleanExtra("PLAYING", false)}")
     }
 
+    fun setPlaybackState(state: Int){
+        mediaSession.setPlaybackState(
+            PlaybackStateCompat.Builder()
+                .setState(state, exoPlayer.currentPosition, 1.0f)
+                .build()
+        )
+    }
     fun onNextButton(){
         if (exoPlayer.hasNextMediaItem()){
             exoPlayer.seekToNext()
@@ -210,6 +224,7 @@ class PlayerService : Service() {
         wasPlayed = false
         exoPlayer.stop()
         exoPlayer.seekToDefaultPosition()
+        setPlaybackState(PlaybackStateCompat.STATE_STOPPED)
         val intent = Intent(this, MainActivity::class.java).apply {
             action = "ACTION_PLAY_BUTTON_TEXT"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -220,27 +235,26 @@ class PlayerService : Service() {
     }
     
     fun updateUI(){
-        val songName = titles?.get(exoPlayer.currentMediaItemIndex) ?: "Unknown"
-        val artist = artists?.get(exoPlayer.currentMediaItemIndex) ?: "Unknown"
-        updateNotification()
-        notificationManager.notify(1, notification)
+        val songName = titles[exoPlayer.currentMediaItemIndex]
+        val artist = artists[exoPlayer.currentMediaItemIndex]
+        notificationManager.notify(1, getNotification())
         songLabel.text = songName
         artistLabel.text = artist
     }
 
-    private fun updateNotification() {
+    private fun getNotification(): Notification {
         val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
             .setShowActionsInCompactView(0, 1, 2)
             .setMediaSession(mediaSession.sessionToken)
-        val songName = titles?.get(exoPlayer.currentMediaItemIndex) ?: "Unknown"
-        val artist = artists?.get(exoPlayer.currentMediaItemIndex) ?: "Unknown"
+        val songName = titles[exoPlayer.currentMediaItemIndex]
+        val artist = artists[exoPlayer.currentMediaItemIndex]
 
         //Create actions
         val actionPlay = NotificationCompat.Action(android.R.drawable.ic_media_play, "play", createActionPendingEvent("ACTION_PLAY"))
         val actionNext = NotificationCompat.Action(android.R.drawable.ic_media_next, "next", createActionPendingEvent("ACTION_NEXT"))
         val actionPrev = NotificationCompat.Action(android.R.drawable.ic_media_previous, "prev", createActionPendingEvent("ACTION_PREV"))
 
-        notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setStyle(mediaStyle)
@@ -250,11 +264,13 @@ class PlayerService : Service() {
                 .addAction(actionNext)
                 .addAction(actionPlay)
                 .setOngoing(true)
+//                .setProgress(exoPlayer.duration.toInt(), exoPlayer.currentPosition.toInt(), false)
                 .build()
         } else {
             throw kotlin.NullPointerException("Bad sdk version")
         }
-        notificationManager.notify(1, notification)
+        println(exoPlayer.duration.toString() + " " + exoPlayer.currentPosition)
+        return notification
     }
 
     fun sliderMoved(value: Float, fromUser: Boolean) {
@@ -272,12 +288,6 @@ class PlayerService : Service() {
         }
     }
 
-//    fun updateUI() {
-//        if (exoPlayer.currentMediaItem != null){
-//            updateUI(exoPlayer.currentMediaItemIndex, exoPlayer.currentMediaItem)
-//        }
-//    }
-
     fun setSong(position: Int) {
         exoPlayer.seekTo(position, 0)
         updateUI()
@@ -292,10 +302,16 @@ class PlayerService : Service() {
     }
 
     fun addArtists(artists: ArrayList<String>) {
-        this.artists = artists
+        this.artists = artists.toTypedArray()
     }
 
     fun addTitles(titles: ArrayList<String>) {
-        this.titles = titles
+        this.titles = titles.toTypedArray()
+    }
+
+    // Logging service stops
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.d("PlayerService", "Service task removed" + rootIntent?.action)
+        super.onTaskRemoved(rootIntent)
     }
 }
