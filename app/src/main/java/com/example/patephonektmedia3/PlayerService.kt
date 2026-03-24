@@ -52,7 +52,7 @@ class PlayerService : Service() {
 
     @SuppressLint("ForegroundServiceType")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action){
+        when (intent?.action) {
             "ACTION_PLAY" -> onPlay()
             "ACTION_NEXT" -> onNextButton()
             "ACTION_PREV" -> onPrevButton()
@@ -62,7 +62,7 @@ class PlayerService : Service() {
         return START_STICKY
     }
 
-    fun onServiceStarted(){
+    fun onServiceStarted() {
         initMediaSession()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceCompat.startForeground(
@@ -98,7 +98,7 @@ class PlayerService : Service() {
         createChannel()
         exoPlayer = ExoPlayer.Builder(this).build()
         exoPlayer.setWakeMode(WAKE_MODE_LOCAL)
-        exoPlayer.addListener(object: Player.Listener{
+        exoPlayer.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 super.onMediaItemTransition(mediaItem, reason)
 
@@ -111,12 +111,13 @@ class PlayerService : Service() {
             }
         })
     }
+
     fun getSongList(): ArrayList<String> {
         val list = ArrayList<String>()
-        if (uriArray != null){
-            for (uri in uriArray){
+        if (uriArray != null) {
+            for (uri in uriArray) {
                 val file = DocumentFile.fromSingleUri(this, uri)
-                if (file != null){
+                if (file != null) {
                     list.add(file.name ?: "")
                 }
             }
@@ -124,7 +125,7 @@ class PlayerService : Service() {
         return list
     }
 
-    fun createChannel(){
+    fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = getString(R.string.channel_name)
             val descriptionText = getString(R.string.channel_description)
@@ -138,30 +139,47 @@ class PlayerService : Service() {
         }
     }
 
-    fun addMedia(list: ArrayList<Uri>){
-        uriArray = list
-        if (uriArray != null){
-            for (uri in uriArray) {
-                exoPlayer.addMediaItem(MediaItem.fromUri(uri))
-            }
+    fun addSongs(songList: ArrayList<Song>) {
+        // Checking if song list is empty
+        if (songList.isEmpty()) {
+            Log.d("PlayerService", "No songs imported!")
+            return
         }
+        uriArray = ArrayList()
+        // Adding song URIs
+        for (song in songList) {
+            uriArray!!.add(song.uri)
+        }
+        // Adding songs in ExoPlayer
+        for (uri in uriArray!!) {
+            exoPlayer.addMediaItem(MediaItem.fromUri(uri))
+        }
+        // Adding song titles and artists
+        titles = Array(songList.size) { "Unknown" }
+        artists = Array(songList.size) { "Unknown" }
+        for (i in 0..< songList.size) {
+            titles[i] = songList[i].name
+            artists[i] = songList[i].artist
+        }
+        Log.d("PlayerService", "successfully added ${songList.size} songs")
     }
 
-    fun onPlay(){
-        if (!wasPlayed){
+    fun onPlay() {
+        if (!wasPlayed) {
             wasPlayed = true
             exoPlayer.prepare()
             updateUI()
         }
 
         var playing = exoPlayer.isPlaying
-        if (!playing){
+        if (!playing) {
             exoPlayer.play()
             setPlaybackState(PlaybackStateCompat.STATE_PLAYING)
             timer = Timer()
             val handler = Handler(Looper.getMainLooper())
+            //Notification updates every second
             timer!!.schedule(
-                object: TimerTask(){
+                object : TimerTask() {
                     override fun run() {
                         handler.post {
                             notificationManager.notify(1, getNotification())
@@ -183,25 +201,34 @@ class PlayerService : Service() {
             putExtra("PLAYING", playing)
         }
         startActivity(intent)
-        Log.d("PlayerService", "Starting intent: ${intent.action} with value ${intent.getBooleanExtra("PLAYING", false)}")
+        Log.d(
+            "PlayerService",
+            "Starting intent: ${intent.action} with value ${
+                intent.getBooleanExtra(
+                    "PLAYING",
+                    false
+                )
+            }"
+        )
     }
 
-    fun setPlaybackState(state: Int){
+    fun setPlaybackState(state: Int) {
         mediaSession.setPlaybackState(
             PlaybackStateCompat.Builder()
                 .setState(state, exoPlayer.currentPosition, 1.0f)
                 .build()
         )
     }
-    fun onNextButton(){
-        if (exoPlayer.hasNextMediaItem()){
+
+    fun onNextButton() {
+        if (exoPlayer.hasNextMediaItem()) {
             exoPlayer.seekToNext()
             updateUI()
         }
     }
 
-    fun onPrevButton(){
-        if (exoPlayer.hasPreviousMediaItem()){
+    fun onPrevButton() {
+        if (exoPlayer.hasPreviousMediaItem()) {
             exoPlayer.seekToPrevious()
             updateUI()
         }
@@ -211,6 +238,7 @@ class PlayerService : Service() {
         this.songLabel = songLabel
         this.artistLabel = artistLabel
     }
+
     override fun onDestroy() {
         Log.d("PlayerService", "Service stopped")
         uriArray = null
@@ -231,10 +259,18 @@ class PlayerService : Service() {
             putExtra("PLAYING", false)
         }
         startActivity(intent)
-        Log.d("PlayerService", "Starting intent: ${intent.action} with value ${intent.getBooleanExtra("PLAYING", false)}")
+        Log.d(
+            "PlayerService",
+            "Starting intent: ${intent.action} with value ${
+                intent.getBooleanExtra(
+                    "PLAYING",
+                    false
+                )
+            }"
+        )
     }
-    
-    fun updateUI(){
+
+    fun updateUI() {
         val songName = titles[exoPlayer.currentMediaItemIndex]
         val artist = artists[exoPlayer.currentMediaItemIndex]
         notificationManager.notify(1, getNotification())
@@ -243,6 +279,8 @@ class PlayerService : Service() {
     }
 
     private fun getNotification(): Notification {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) throw kotlin.NullPointerException("Bad sdk version")
+
         val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
             .setShowActionsInCompactView(0, 1, 2)
             .setMediaSession(mediaSession.sessionToken)
@@ -250,40 +288,53 @@ class PlayerService : Service() {
         val artist = artists[exoPlayer.currentMediaItemIndex]
 
         //Create actions
-        val actionPlay = NotificationCompat.Action(android.R.drawable.ic_media_play, "play", createActionPendingEvent("ACTION_PLAY"))
-        val actionNext = NotificationCompat.Action(android.R.drawable.ic_media_next, "next", createActionPendingEvent("ACTION_NEXT"))
-        val actionPrev = NotificationCompat.Action(android.R.drawable.ic_media_previous, "prev", createActionPendingEvent("ACTION_PREV"))
+        val actionPlay = NotificationCompat.Action(
+            android.R.drawable.ic_media_play,
+            "play",
+            createActionPendingEvent("ACTION_PLAY")
+        )
+        val actionNext = NotificationCompat.Action(
+            android.R.drawable.ic_media_next,
+            "next",
+            createActionPendingEvent("ACTION_NEXT")
+        )
+        val actionPrev = NotificationCompat.Action(
+            android.R.drawable.ic_media_previous,
+            "prev",
+            createActionPendingEvent("ACTION_PREV")
+        )
 
-        val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationCompat.Builder(this, channelId)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setStyle(mediaStyle)
-                .setContentTitle(songName)
-                .setContentText(artist)
-                .addAction(actionPrev)
-                .addAction(actionNext)
-                .addAction(actionPlay)
-                .setOngoing(true)
-//                .setProgress(exoPlayer.duration.toInt(), exoPlayer.currentPosition.toInt(), false)
-                .build()
-        } else {
-            throw kotlin.NullPointerException("Bad sdk version")
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setStyle(mediaStyle)
+            .setContentTitle(songName)
+            .setContentText(artist)
+            .setOngoing(exoPlayer.isPlaying)
+            .addAction(actionPrev)
+            .addAction(actionNext)
+            .addAction(actionPlay)
+        if (exoPlayer.isPlaying) {
+            builder.setProgress(
+                exoPlayer.duration.toInt(),
+                exoPlayer.currentPosition.toInt(),
+                false
+            )
         }
-        println(exoPlayer.duration.toString() + " " + exoPlayer.currentPosition)
-        return notification
+
+        return builder.build()
     }
 
     fun sliderMoved(value: Float, fromUser: Boolean) {
-        if (fromUser){
-            val time: Long = (value*exoPlayer.duration).toLong()
+        if (fromUser) {
+            val time: Long = (value * exoPlayer.duration).toLong()
             exoPlayer.seekTo(time)
         }
     }
 
     fun getTime(): Float? {
         return try {
-            exoPlayer.currentPosition.toFloat()/exoPlayer.duration
-        } catch (_: IllegalStateException){
+            exoPlayer.currentPosition.toFloat() / exoPlayer.duration
+        } catch (_: IllegalStateException) {
             null
         }
     }
@@ -293,25 +344,21 @@ class PlayerService : Service() {
         updateUI()
     }
 
-    fun getCurrentSong(): String{
-        if (exoPlayer.currentMediaItem != null && uriArray != null){
+    fun getCurrentSong(): String {
+        if (exoPlayer.currentMediaItem != null && uriArray != null) {
             val file = DocumentFile.fromSingleUri(this, uriArray!![exoPlayer.currentMediaItemIndex])
             return file?.name ?: ""
         }
         return ""
     }
 
-    fun addArtists(artists: ArrayList<String>) {
-        this.artists = artists.toTypedArray()
-    }
-
-    fun addTitles(titles: ArrayList<String>) {
-        this.titles = titles.toTypedArray()
-    }
-
     // Logging service stops
     override fun onTaskRemoved(rootIntent: Intent?) {
         Log.d("PlayerService", "Service task removed" + rootIntent?.action)
         super.onTaskRemoved(rootIntent)
+    }
+    fun setViews(songLabel: TextView, artist: TextView){
+        this.songLabel = songLabel
+        this.artistLabel = artist
     }
 }

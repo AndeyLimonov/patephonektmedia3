@@ -16,7 +16,8 @@ class ListAdapter(context: Context, items: ArrayList<String>, val service: Playe
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         val item = getItem(position) ?: return convertView!!
 
-        val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.list_item, parent, false)
+        val view =
+            convertView ?: LayoutInflater.from(context).inflate(R.layout.list_item, parent, false)
         view.setBackgroundResource(R.drawable.frame)
         val textView = view.findViewById<TextView>(R.id.item_text)
         textView.text = item
@@ -24,7 +25,7 @@ class ListAdapter(context: Context, items: ArrayList<String>, val service: Playe
         view.setOnClickListener { v -> setSong(position, view) }
 
         //Light frame for current song
-        if (item == currentSong){
+        if (item == currentSong) {
             val drawable = view.background as Drawable
             drawable.setTint(ContextCompat.getColor(context, R.color.activeSongInFrame))
             view.invalidate()
