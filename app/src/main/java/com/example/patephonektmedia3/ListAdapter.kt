@@ -9,8 +9,9 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.media3.session.MediaController
 
-class ListAdapter(context: Context, items: ArrayList<String>, val service: PlayerService?, var currentSong: String) : ArrayAdapter<String>(context, 0, items) {
+class ListAdapter(context: Context, items: ArrayList<String>, val controller: MediaController?, var currentSong: String) : ArrayAdapter<String>(context, 0, items) {
     lateinit var currentSongView: View
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -22,7 +23,7 @@ class ListAdapter(context: Context, items: ArrayList<String>, val service: Playe
         val textView = view.findViewById<TextView>(R.id.item_text)
         textView.text = item
 
-        view.setOnClickListener { v -> setSong(position, view) }
+        view.setOnClickListener { _ -> setSong(position, view) }
 
         //Light frame for current song
         if (item == currentSong) {
@@ -32,14 +33,13 @@ class ListAdapter(context: Context, items: ArrayList<String>, val service: Playe
         } else {
             view.setBackgroundColor(Color.TRANSPARENT)
         }
-
         return view
     }
 
     private fun setSong(position: Int, view: View) {
         currentSongView = view
         notifyDataSetChanged()
-        service?.setSong(position)
-        currentSong = service?.getCurrentSong() ?: ""
+        controller?.seekToDefaultPosition(position)
+        currentSong = controller?.currentMediaItem?.mediaMetadata?.title as? String ?: ""
     }
 }

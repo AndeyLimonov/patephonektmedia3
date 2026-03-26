@@ -1,13 +1,15 @@
 [versions]
-agp = "8.13.0"
+activityKtx = "1.7.2"
+agp = "9.1.0"
 appcompatVersion = "1.5.0"
 coreKtxVersion = "1.12.0"
-kotlin = "2.0.21"
+kotlin = "2.2.10"
 coreKtx = "1.10.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 appcompat = "1.6.1"
+lifecycleViewmodelKtx = "2.6.1"
 material = "1.10.0"
 activity = "1.8.0"
 constraintlayout = "2.1.4"
@@ -15,11 +17,17 @@ documentfile = "1.1.0"
 media = "1.7.1"
 media3Exoplayer = "1.8.0"
 media3Session = "1.9.2"
+media3SessionVersion = "1.9.3"
+espressoWeb = "3.7.0"
+preference = "1.2.0"
+preferenceVersion = "1.2.1"
 
 [libraries]
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activityKtx" }
 androidx-appcompat-v150 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-ktx-v1120 = { module = "androidx.core:core-ktx", version.ref = "coreKtxVersion" }
+androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtx" }
 androidx-media = { module = "androidx.media:media", version.ref = "media" }
 androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3Exoplayer" }
 androidx-media3-exoplayer-dash = { module = "androidx.media3:media3-exoplayer-dash", version.ref = "media3Exoplayer" }
@@ -34,6 +42,10 @@ androidx-activity = { group = "androidx.activity", name = "activity", version.re
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3Session" }
+media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3SessionVersion" }
+androidx-espresso-web = { group = "androidx.test.espresso", name = "espresso-web", version.ref = "espressoWeb" }
+androidx-preference = { group = "androidx.preference", name = "preference", version.ref = "preference" }
+preference = { group = "androidx.preference", name = "preference", version.ref = "preferenceVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

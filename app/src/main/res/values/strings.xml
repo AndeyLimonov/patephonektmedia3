@@ -13,4 +13,11 @@
     <string name="pause_button">Pause</string>
     <string name="stop_button">Stop</string>
     <string name="artist">artist</string>
+    <string name="title_activity_settings">SettingsActivity</string>
+    <string name="disabled">Disabled</string>
+
+    <!-- Player Preferences -->
+    <string name="player_header">Player settings</string>
+    <string name="repeat_title">Repeat mode</string>
+    <string name="shuffle_title">Shuffle mode</string>
 </resources>

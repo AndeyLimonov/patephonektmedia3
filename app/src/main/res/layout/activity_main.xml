@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.drawerlayout.widget.DrawerLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/drawer_layout"
@@ -41,13 +40,13 @@
             android:id="@+id/importButton"
             android:layout_width="120dp"
             android:layout_height="40dp"
-            android:textColor="@color/importButtonText"
-            android:background="@android:color/transparent"
-            android:text="@string/import_button"
-            android:gravity="end"
-            android:textStyle="bold|italic"
-            android:textSize="17sp"
             android:layout_marginTop="8dp"
+            android:background="@android:color/transparent"
+            android:gravity="end"
+            android:text="@string/import_button"
+            android:textColor="@color/importButtonText"
+            android:textSize="17sp"
+            android:textStyle="bold|italic"
             app:layout_constraintEnd_toEndOf="@+id/frameLayout"
             app:layout_constraintTop_toBottomOf="@+id/frameLayout" />
 
@@ -118,8 +117,8 @@
                 android:id="@+id/songList"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:layout_marginTop="10dp"
                 android:layout_marginStart="10dp"
+                android:layout_marginTop="10dp"
                 android:layout_marginEnd="10dp"
                 android:divider="@android:color/transparent"
                 android:scrollbars="none"
@@ -185,14 +184,26 @@
             android:id="@+id/guideline"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginBottom="8dp"
+            app:layout_constraintBottom_toTopOf="@+id/frameLayout"
+            app:layout_constraintStart_toStartOf="@+id/slider"
+            android:src="@drawable/media3_icon_settings"
+            android:backgroundTint="@color/background"
+            android:contentDescription="@string/app_name"
+            app:tint="@color/primary60" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-<!--    <com.google.android.material.navigation.NavigationView-->
-<!--        android:id="@+id/nav_view"-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="match_parent"-->
-<!--        android:layout_gravity="start"-->
-<!--        app:menu="@menu/drawer_menu"-->
-<!--        app:theme="@style/Theme.Patephone"/>-->
+    <!--    <com.google.android.material.navigation.NavigationView-->
+    <!--        android:id="@+id/nav_view"-->
+    <!--        android:layout_width="wrap_content"-->
+    <!--        android:layout_height="match_parent"-->
+    <!--        android:layout_gravity="start"-->
+    <!--        app:menu="@menu/drawer_menu"-->
+    <!--        app:theme="@style/Theme.Patephone"/>-->
 
 </androidx.drawerlayout.widget.DrawerLayout>
