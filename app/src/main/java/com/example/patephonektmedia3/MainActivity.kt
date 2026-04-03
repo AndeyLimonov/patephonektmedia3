@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Player updates UI if intent contains extra playerStateChanged = true
     override fun onNewIntent(intent: Intent?) {
         if (intent != null && intent.getBooleanExtra("playerStateChanged", false)) updateUI()
         super.onNewIntent(intent)
@@ -119,6 +120,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Starting service
         startForegroundService(Intent(this, UpdatedService::class.java))
         lifecycleScope.launch {
             val context = applicationContext
@@ -129,6 +131,7 @@ class MainActivity : AppCompatActivity() {
             mediaController =
                 MediaController.Builder(context, sessionToken).buildAsync().await()
         }
+
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
@@ -302,11 +305,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     //Use true to set frame visible or false to set it invisible
-    private fun mainFrameAnimator(arg: Boolean) {
+    private fun mainFrameAnimator(makeVisible: Boolean) {
         val mainFrame = findViewById<FrameLayout>(R.id.frameLayout)
         var objectAnimator: ObjectAnimator
 
-        if (arg) {
+        if (makeVisible) {
             objectAnimator = ObjectAnimator.ofFloat(mainFrame, "alpha", 0f, 1f)
             objectAnimator.duration = 300
             objectAnimator.addListener(object : Animator.AnimatorListener {
@@ -334,6 +337,7 @@ class MainActivity : AppCompatActivity() {
         objectAnimator.start()
     }
 
+    //  This method is necessary for frame animation
     private fun isPointInsideView(x: Float, y: Float, view: View): Boolean {
         val location = IntArray(2)
         view.getLocationOnScreen(location)
@@ -453,9 +457,11 @@ class MainActivity : AppCompatActivity() {
         val fileName: String? = file.name
         if (fileName != null) {
             try {
+                // Application finds file type
                 val fileArr = fileName.split(".")
                 val fileType: String = fileArr[fileArr.size - 1]
                 if (fileType == "jpg") {
+                    // if file is image, app uses it as picture
                     val image: ImageView = findViewById(R.id.mainFramePicture)
                     image.setImageURI(file.uri)
                     val innerPic: ImageView = findViewById(R.id.mainFrameNoImage)

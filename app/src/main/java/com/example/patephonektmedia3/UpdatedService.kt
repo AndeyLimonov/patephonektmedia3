@@ -15,7 +15,6 @@ import androidx.media3.session.MediaSessionService
 class UpdatedService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
 
-    // Создаем плеер и сессию при создании сервиса
     override fun onCreate() {
         super.onCreate()
         val notification = createNotification()
@@ -27,6 +26,8 @@ class UpdatedService : MediaSessionService() {
         Log.d("UpdatedService", "Service started")
     }
 
+// This method starts intent for activity to update UI
+    // Activity updates UI if intent contains extra playerStateChanged = true
     private val playerListener = object: Player.Listener{
         override fun onEvents(player: Player, events: Player.Events) {
             if (mediaSession == null) return
@@ -41,6 +42,8 @@ class UpdatedService : MediaSessionService() {
             super.onEvents(player, events)
         }
     }
+
+
     private fun createNotification(): Notification {
         createNotificationChannel()
 
@@ -63,13 +66,11 @@ class UpdatedService : MediaSessionService() {
         }
     }
 
-    // Этот метод вызывается, когда контроллер (например, UI или уведомление) хочет подключиться
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         Log.d("UpdatedService", "onGetSession called, returning: ${mediaSession != null}")
         return mediaSession
     }
 
-    // Обязательно освобождаем ресурсы
     override fun onDestroy() {
         mediaSession?.run {
             player.release()
