@@ -6,6 +6,7 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -23,6 +24,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -47,8 +49,8 @@ const val REQUEST_CODE_OPEN_DIRECTORY: Int = 1
 val supportedFiles: Array<String> = arrayOf("mp3", "flac")
 
 class MainActivity : AppCompatActivity() {
+    var imageUri: Uri? = null
     var mediaController: MediaController? = null
-    var hasSupFiles = false
     fun getSongTitle(mediaUri: Uri): String {
         val retriever = MediaMetadataRetriever()
         try {
@@ -97,6 +99,16 @@ class MainActivity : AppCompatActivity() {
         val artistLabel: TextView = findViewById(R.id.artistLabel)
         artistLabel.text = mediaController!!.currentMediaItem?.mediaMetadata?.artist ?: "Unknown"
 
+        //Setting artwork
+        val currentMedia = mediaController?.currentMediaItem
+        if (currentMedia != null) {
+            // setPicture(currentMedia) returns false if there's no artwork in metaData
+            val result: Boolean = setPicture(currentMedia)
+            if (!result && imageUri != null) {
+                setPicture(imageUri!!)
+            } else if (imageUri == null) Log.d("MainActivity", "imageUri = null")
+        }
+
         Log.d("MainActivity", "UI updated")
     }
 
@@ -134,6 +146,16 @@ class MainActivity : AppCompatActivity() {
 
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+
+        val callback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (findViewById<ListView>(R.id.songList).isVisible) {
+                    collapseFrame(findViewById(R.id.frameLayout2))
+                } else moveTaskToBack(true)
+            }
+        }
+
+        onBackPressedDispatcher.addCallback(this, callback)
 
         val importButton: Button = findViewById(R.id.importButton)
         importButton.setOnClickListener { _ -> onImport() }
@@ -205,9 +227,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onStopButton() {
+        // Closing frame if it's visible
+        if (findViewById<ListView>(R.id.songList).isVisible) {
+            collapseFrame(findViewById(R.id.frameLayout2))
+        }
+
         mediaController?.stop()
-        mediaController?.release()
-        mediaController = null
+        mediaController?.removeMediaItems(0, mediaController!!.mediaItemCount - 1)
+        updateUI()
     }
 
     private fun onPlayButtonClicked() {
@@ -361,7 +388,7 @@ class MainActivity : AppCompatActivity() {
         val heightAnimator = ValueAnimator.ofInt(
             frameLayout.height,
             displayMetrics.heightPixels / 2
-        )//Cause frame should take a half
+        )//Cause frame should take a half screen
         heightAnimator.addUpdateListener { animation ->
             layoutParams.height = animation.animatedValue as Int
             frameLayout.layoutParams = layoutParams
@@ -462,14 +489,11 @@ class MainActivity : AppCompatActivity() {
                 val fileType: String = fileArr[fileArr.size - 1]
                 if (fileType == "jpg") {
                     // if file is image, app uses it as picture
-                    val image: ImageView = findViewById(R.id.mainFramePicture)
-                    image.setImageURI(file.uri)
-                    val innerPic: ImageView = findViewById(R.id.mainFrameNoImage)
-                    innerPic.visibility = View.INVISIBLE
+                    imageUri = file.uri
                     return false
                 }
                 for (type in supportedFiles) {
-                    if (fileType == type){
+                    if (fileType == type) {
                         return true
                     }
                 }
@@ -482,9 +506,37 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
+    private fun setPicture(uri: Uri) {
+        val imageView: ImageView = findViewById(R.id.mainFramePicture)
+        imageView.setImageURI(uri)
+        // Make triangle icon on frame center invisible
+        val innerPic: ImageView = findViewById(R.id.mainFrameNoImage)
+        innerPic.visibility = View.INVISIBLE
+
+        Log.d("MainActivity", "artwork changed: uri")
+    }
+
+    private fun setPicture(mediaItem: MediaItem): Boolean {
+        val imageView: ImageView = findViewById(R.id.imageView)
+        val artworkBytes = mediaItem.mediaMetadata.artworkData
+
+        if (artworkBytes != null) {
+            val bitmap = BitmapFactory.decodeByteArray(artworkBytes, 0, artworkBytes.size)
+            imageView.setImageBitmap(bitmap)
+            // Make triangle icon on frame center invisible
+            val innerPic: ImageView = findViewById(R.id.mainFrameNoImage)
+            innerPic.visibility = View.INVISIBLE
+
+            Log.d("MainActivity", "artwork changed: bitmap")
+            return true
+        }
+        Log.d("MainActivity", "no bitmap artwork in metadata")
+        return false
+    }
+
     override fun onResume() {
         updateSettings()
-        if (mediaController != null){
+        if (mediaController != null) {
             updateUI()
         }
         super.onResume()
@@ -498,7 +550,7 @@ class MainActivity : AppCompatActivity() {
         mediaController?.shuffleModeEnabled = shuffleModeEnabled
         prefString += "Shuffle mode: $shuffleModeEnabled\n"
         //Repeat mode
-        val repeatMode = when (prefs.getString("list_preference_repeat", "0")){
+        val repeatMode = when (prefs.getString("list_preference_repeat", "0")) {
             "1" -> Player.REPEAT_MODE_ONE
             "2" -> Player.REPEAT_MODE_ALL
             else -> Player.REPEAT_MODE_OFF
@@ -509,30 +561,31 @@ class MainActivity : AppCompatActivity() {
         Log.i("New preferences applied:", prefString)
     }
 
-    @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
     private fun listFiles(uri: Uri) {
         val directory: DocumentFile? = DocumentFile.fromTreeUri(this, uri)
         if (directory != null && directory.isDirectory) {
             for (file: DocumentFile in directory.listFiles()) {
                 if (fileSupported(file)) {
-                    hasSupFiles = true
                     val fileUri = file.uri
-                    val mediaItem =
-                        MediaItem.Builder()
-                            .setMediaId("media-1")
-                            .setUri(fileUri)
-                            .setMediaMetadata(
-                                MediaMetadata.Builder()
-                                    .setArtist(getSongArtist(fileUri))
-                                    .setTitle(getSongTitle(fileUri))
-                                    .build()
-                            )
-                            .build()
-                    mediaController?.addMediaItem(mediaItem)
+                    mediaController?.addMediaItem(buildMediaItem(fileUri))
                 }
             }
             Log.d("MainActivity", "added " + mediaController?.mediaItemCount + " songs")
         }
+    }
+
+    private fun buildMediaItem(fileUri: Uri): MediaItem {
+        val mediaItem =
+            MediaItem.Builder()
+                .setUri(fileUri)
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setArtist(getSongArtist(fileUri))
+                        .setTitle(getSongTitle(fileUri))
+                        .build()
+                )
+                .build()
+        return mediaItem
     }
 
     override fun onDestroy() {
