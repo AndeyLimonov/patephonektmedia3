@@ -7,7 +7,6 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -35,7 +34,6 @@ import androidx.core.view.isVisible
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -51,34 +49,6 @@ val supportedFiles: Array<String> = arrayOf("mp3", "flac")
 class MainActivity : AppCompatActivity() {
     var imageUri: Uri? = null
     var mediaController: MediaController? = null
-    fun getSongTitle(mediaUri: Uri): String {
-        val retriever = MediaMetadataRetriever()
-        try {
-            retriever.setDataSource(applicationContext, mediaUri)
-            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-            return title ?: DocumentFile.fromSingleUri(applicationContext, mediaUri)!!.name
-            ?: "Unknown"
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return "Unknown"
-        } finally {
-            retriever.release()
-        }
-    }
-
-    fun getSongArtist(mediaUri: Uri): String {
-        val retriever = MediaMetadataRetriever()
-        try {
-            retriever.setDataSource(applicationContext, mediaUri)
-            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-            return artist ?: "Unknown"
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return "Unknown"
-        } finally {
-            retriever.release()
-        }
-    }
 
     // Player updates UI if intent contains extra playerStateChanged = true
     override fun onNewIntent(intent: Intent?) {
@@ -88,25 +58,28 @@ class MainActivity : AppCompatActivity() {
 
     fun updateUI() {
         //Checking if session was initialized
-        if (mediaController == null) return
+        val wasImported = (mediaController?.mediaItemCount != 0)
 
         onChangePlayButton(mediaController!!.isPlaying)
-        //Setting title
         val songLabel: TextView = findViewById(R.id.songLabel)
-        songLabel.text = mediaController!!.currentMediaItem?.mediaMetadata?.title ?: "Unknown"
-
-        //Setting artist
         val artistLabel: TextView = findViewById(R.id.artistLabel)
-        artistLabel.text = mediaController!!.currentMediaItem?.mediaMetadata?.artist ?: "Unknown"
-
-        //Setting artwork
         val currentMedia = mediaController?.currentMediaItem
-        if (currentMedia != null) {
-            // setPicture(currentMedia) returns false if there's no artwork in metaData
-            val result: Boolean = setPicture(currentMedia)
-            if (!result && imageUri != null) {
-                setPicture(imageUri!!)
-            } else if (imageUri == null) Log.d("MainActivity", "imageUri = null")
+
+        if (wasImported){
+            songLabel.text = mediaController!!.currentMediaItem?.mediaMetadata?.title ?: "Unknown"
+            artistLabel.text = mediaController!!.currentMediaItem?.mediaMetadata?.artist ?: "Unknown"
+            //Setting artwork
+            if (currentMedia != null) {
+                // setPicture(currentMedia) returns false if there's no artwork in metaData
+                val result: Boolean = setPicture(currentMedia)
+                if (!result && imageUri != null) {
+                    setPicture(imageUri!!)
+                } else if (imageUri == null) Log.d("MainActivity", "imageUri = null")
+            }
+        } else {
+            songLabel.text = getString((R.string.song_label_default))
+            artistLabel.text = getString(R.string.artist)
+            removePicture()
         }
 
         Log.d("MainActivity", "UI updated")
@@ -233,7 +206,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         mediaController?.stop()
-        mediaController?.removeMediaItems(0, mediaController!!.mediaItemCount - 1)
+        mediaController?.removeMediaItems(0, mediaController!!.mediaItemCount)
         updateUI()
     }
 
@@ -331,6 +304,12 @@ class MainActivity : AppCompatActivity() {
         mainFrameAnimator(true)
     }
 
+    private fun removePicture(){
+        val imageView = findViewById<ImageView>(R.id.mainFramePicture)
+        val innerPic = findViewById<ImageView>(R.id.mainFrameNoImage)
+        imageView.setImageURI(null)
+        innerPic.visibility =View.VISIBLE
+    }
     //Use true to set frame visible or false to set it invisible
     private fun mainFrameAnimator(makeVisible: Boolean) {
         val mainFrame = findViewById<FrameLayout>(R.id.frameLayout)
@@ -561,31 +540,18 @@ class MainActivity : AppCompatActivity() {
         Log.i("New preferences applied:", prefString)
     }
 
-    private fun listFiles(uri: Uri) {
-        val directory: DocumentFile? = DocumentFile.fromTreeUri(this, uri)
+    private fun listFiles(treeUri: Uri) {
+        val directory: DocumentFile? = DocumentFile.fromTreeUri(this, treeUri)
         if (directory != null && directory.isDirectory) {
             for (file: DocumentFile in directory.listFiles()) {
                 if (fileSupported(file)) {
-                    val fileUri = file.uri
-                    mediaController?.addMediaItem(buildMediaItem(fileUri))
+                    mediaController?.addMediaItem(
+                        MediaItemBuilder(file.uri, this).buildMediaItem()
+                    )
                 }
             }
             Log.d("MainActivity", "added " + mediaController?.mediaItemCount + " songs")
         }
-    }
-
-    private fun buildMediaItem(fileUri: Uri): MediaItem {
-        val mediaItem =
-            MediaItem.Builder()
-                .setUri(fileUri)
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setArtist(getSongArtist(fileUri))
-                        .setTitle(getSongTitle(fileUri))
-                        .build()
-                )
-                .build()
-        return mediaItem
     }
 
     override fun onDestroy() {
